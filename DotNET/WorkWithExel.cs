@@ -11,6 +11,13 @@ namespace DotNET
 
         public void OpenExel(string path)
         {
+            if (Directory.Exists(path))
+                path = Path.Combine(path, $"result_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+
+            string? directory = Path.GetDirectoryName(Path.GetFullPath(path));
+            if (!string.IsNullOrEmpty(directory))
+                Directory.CreateDirectory(directory);
+
             if (File.Exists(path))
                 File.Delete(path);
 

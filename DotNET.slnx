@@ -1,4 +1,4 @@
 <Solution>
-  <Project Path="DotNET/DotNET.csproj" />
-  <Project Path="WinFormsApp/WinFormsApp.csproj" Id="deed77e8-e25c-405e-95d4-a366da0b8ebc" />
+  <Project Path="DotNET/Core.csproj" />
+  <Project Path="WinFormsApp/UI.csproj" Id="deed77e8-e25c-405e-95d4-a366da0b8ebc" />
 </Solution>

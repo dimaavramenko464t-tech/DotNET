@@ -3,22 +3,103 @@ using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace DotNET
 {
-    public class Programm
+    public class Converter
     {
-        public static void Main(string[] args)
-        {
-            string wordPath = @"C:\Users\User\Desktop\бИПТ-251_Авраменко_КП.docx";
-            string excelPath = Path.ChangeExtension(wordPath, ".xlsx");
+        private static readonly string LogPath =
+            Path.Combine(AppContext.BaseDirectory, "errors.log");
 
-            Programm pr = new Programm();
-            List<WordTable> tables = pr.WordTableParse(wordPath);
+        private static int errorCount;
+        private static string? logWriteError;
+        private static string stage = "Запуск";
+
+        private static void LogError(string message)
+        {
+            errorCount++;
+
+            try
+            {
+                File.AppendAllText(
+                    LogPath,
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}");
+            }
+            catch (Exception ex)
+            {
+                logWriteError = ex.Message;
+            }
+        }
+
+        private static void ReportLog()
+        {
+            if (errorCount == 0)
+                return;
+
+            if (logWriteError == null)
+                Console.WriteLine($"Ошибок: {errorCount}. Лог сохранён: {LogPath}");
+            else
+                Console.WriteLine($"Ошибок: {errorCount}. Не удалось сохранить лог {LogPath}: {logWriteError}");
+        }
+
+        public static string Main(List<string> word,string excel)
+        {
+            errorCount = 0;
+            logWriteError = null;
+            stage = "Запуск";
+
+            try
+            {
+                Execute(word,excel);
+            }
+            catch (Exception ex)
+            {
+                LogError($"Критическая ошибка на этапе [{stage}] ({ex.GetType().Name}): {ex.Message}");
+            }
+            finally
+            {
+                ReportLog();
+            }
+            return errorCount == 0 ? "Success" : "Error";
+        }
+
+        private static void Execute(List<string> files, string excelPath)
+        {
+            Converter pr = new Converter();
+
+            if (files.Count == 0)
+            {
+                LogError($"Ошибка на этапе [{stage}]: Word-файлы не найдены");
+                return;
+            }
+
+            List<WordTable> tables = new List<WordTable>();
+            foreach (string file in files)
+            {
+                stage = $"Чтение Word-файла: {file}";
+                try
+                {
+                    tables.AddRange(pr.WordTableParse(file));
+                    Console.WriteLine($"Обработан: {file}");
+                }
+                catch (Exception ex)
+                {
+                    LogError($"Ошибка на этапе [{stage}] ({ex.GetType().Name}): {ex.Message}");
+                }
+            }
+
+            stage = "Группировка таблиц по заголовкам";
             List<WordTable> grouped = pr.GroupByHeader(tables);
 
             WorkWithExel excel = new WorkWithExel();
+
+            stage = $"Создание Excel-файла: {excelPath}";
             excel.OpenExel(excelPath);
+
+            stage = $"Запись таблиц в Excel: {excelPath}";
             excel.WriteGroupedTables(grouped);
+
+            stage = $"Закрытие Excel-файла: {excelPath}";
             excel.Close();
 
+            stage = "Завершение";
             Console.WriteLine($"Записано: {excelPath}");
         }
 
