@@ -37,11 +37,11 @@ namespace DotNET
                 ?? throw new InvalidOperationException("Excel-файл не открыт.");
             Sheets sheets = workbook.GetFirstChild<Sheets>() ?? workbook.AppendChild(new Sheets());
             HashSet<string> usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            uint sheetId = 1;
+            int sheetNumber = 1;
 
             foreach (WordTable group in groups)
             {
-                string sheetName = UniqueSheetName(group.Header, usedNames);
+                string sheetName = UniqueSheetName(group.Header, sheetNumber, usedNames);
 
                 WorksheetPart worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
                 SheetData sheetData = new SheetData();
@@ -63,11 +63,11 @@ namespace DotNET
                 sheets.Append(new Sheet
                 {
                     Id = workbookPart.GetIdOfPart(worksheetPart),
-                    SheetId = sheetId,
+                    SheetId = (uint)sheetNumber,
                     Name = sheetName
                 });
 
-                sheetId++;
+                sheetNumber++;
             }
 
             workbook.Save();
@@ -101,9 +101,12 @@ namespace DotNET
             return row;
         }
 
-        private static string UniqueSheetName(IReadOnlyList<string> header, HashSet<string> usedNames)
+        private static string UniqueSheetName(IReadOnlyList<string> header, int sheetNumber, HashSet<string> usedNames)
         {
-            string baseName = SanitizeSheetName(header.Count > 0 ? header[0] : "Sheet");
+            string baseName = SanitizeSheetName(BuildBaseName(header, sheetNumber));
+            if (baseName.Length == 0)
+                baseName = $"Таблица {sheetNumber}";
+
             string name = baseName;
             int suffix = 2;
 
@@ -118,11 +121,18 @@ namespace DotNET
             return name;
         }
 
+        private static string BuildBaseName(IReadOnlyList<string> header, int sheetNumber)
+        {
+            IEnumerable<string> parts = header
+                .Select(part => part?.Trim())
+                .Where(part => !string.IsNullOrEmpty(part))!;
+            string joined = string.Join(" - ", parts);
+
+            return string.IsNullOrWhiteSpace(joined) ? $"Таблица {sheetNumber}" : joined;
+        }
+
         private static string SanitizeSheetName(string name)
         {
-            if (string.IsNullOrWhiteSpace(name))
-                return "Sheet";
-
             char[] invalid = { '\\', '/', '*', '?', ':', '[', ']' };
             StringBuilder builder = new StringBuilder();
 
@@ -133,8 +143,6 @@ namespace DotNET
             }
 
             string result = builder.ToString().Trim();
-            if (result.Length == 0)
-                result = "Sheet";
             if (result.Length > 31)
                 result = result[..31];
 
